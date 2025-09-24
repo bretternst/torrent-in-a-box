@@ -6,7 +6,7 @@ ARG S6_OVERLAY_VERSION=3.2.1.0
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
-    openvpn transmission-daemon iputils-ping inetutils-traceroute iproute2 xz-utils nftables curl ca-certificates procps \
+    openvpn transmission-daemon iproute2 xz-utils nftables curl ca-certificates \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists \
     && groupadd -g $GID media \
