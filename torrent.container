@@ -12,7 +12,9 @@ DNS=1.1.1.1
 StopTimeout=60
 
 [Service]
+ExecStartPre=/bin/bash -c 'until /usr/bin/ping -c 1 192.168.1.1 -W 1; do :; done'
 Restart=unless-stopped
 
 [Install]
 WantedBy=default.target
+After=podman-user-wait-network-online
