@@ -1,0 +1,13 @@
+flush ruleset
+
+table inet filter {
+    chain output {
+        type filter hook output priority 0; policy drop;
+        oif lo accept
+        oifname tun0 accept
+        udp dport 1198 accept
+        udp dport 53 accept
+        tcp dport 53 accept
+        tcp sport 9091 accept
+    }
+}

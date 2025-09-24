@@ -1,0 +1,2 @@
+#!/command/execlineb -P
+/usr/bin/transmission-daemon -g /home/media/config -f --log-level=error
