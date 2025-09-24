@@ -1,0 +1,18 @@
+[Unit]
+Description=Torrent in a Box
+
+[Container]
+Image=localhost/torrent:latest
+HostName=torrent
+Volume=/home/media:/home/media
+PublishPort=9091:9091
+AddCapability=NET_ADMIN
+AddDevice=/dev/net/tun
+DNS=1.1.1.1
+StopTimeout=60
+
+[Service]
+Restart=unless-stopped
+
+[Install]
+WantedBy=default.target

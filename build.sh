@@ -3,4 +3,4 @@
 MEDIA_UID=$(id -u media)
 MEDIA_GID=$(id -g media)
 
-podman build --build-arg UID=$MEDIA_UID --build-arg GID=$MEDIA_GID -t torrent .
+podman build --build-arg UID=$MEDIA_UID --build-arg GID=$MEDIA_GID -t torrent:latest .

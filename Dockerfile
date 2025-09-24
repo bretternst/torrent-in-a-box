@@ -22,5 +22,6 @@ COPY jobs/ /etc/s6-overlay/s6-rc.d/
 COPY nftables.rules /etc/
 
 VOLUME /home/media
+EXPOSE 9091
 
 ENTRYPOINT ["/init"]
