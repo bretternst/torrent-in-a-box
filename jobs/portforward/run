@@ -1,0 +1,65 @@
+#!/bin/bash
+
+PIA_CREDS=/etc/openvpn/client/pia.txt
+PIA_CA=/etc/openvpn/client/ca.rsa.4096.crt
+
+echo "portforward: waiting for VPN tunnel..."
+while ! ip link show tun0 up &>/dev/null; do sleep 2; done
+sleep 2  # let routes settle
+
+GATEWAY=$(ip route show dev tun0 | awk '/via/{print $3; exit}')
+if [ -z "$GATEWAY" ]; then
+    TUN_IP=$(ip -4 addr show tun0 | awk '/inet /{print $2}' | cut -d/ -f1)
+    GATEWAY=$(echo "$TUN_IP" | awk -F. '{print $1"."$2"."$3".1"}')
+fi
+PF_HOSTNAME=$(awk '/^remote /{print $2}' /etc/openvpn/client/vpn.conf)
+echo "portforward: VPN gateway is $GATEWAY ($PF_HOSTNAME)"
+
+PIA_USER=$(sed -n '1p' "$PIA_CREDS")
+PIA_PASS=$(sed -n '2p' "$PIA_CREDS")
+
+TOKEN=$(curl -s -u "$PIA_USER:$PIA_PASS" \
+    "https://privateinternetaccess.com/gtoken/generateToken" | jq -r '.token // empty')
+
+if [ -z "$TOKEN" ]; then
+    echo "portforward: failed to get token, retrying in 30s"
+    sleep 30
+    exit 1
+fi
+
+RESPONSE=$(curl -sG --cacert "$PIA_CA" \
+    --connect-to "${PF_HOSTNAME}::${GATEWAY}:" \
+    --data-urlencode "token=$TOKEN" \
+    "https://${PF_HOSTNAME}:19999/getSignature")
+PAYLOAD=$(echo "$RESPONSE" | jq -r '.payload // empty')
+SIGNATURE=$(echo "$RESPONSE" | jq -r '.signature // empty')
+PORT=$(echo "$PAYLOAD" | base64 -d 2>/dev/null | jq -r '.port // empty')
+
+if [ -z "$PORT" ]; then
+    echo "portforward: failed to get port assignment, retrying in 30s"
+    sleep 30
+    exit 1
+fi
+
+echo "portforward: assigned port $PORT"
+
+# Configure Transmission to use the PIA-assigned port
+SESSION_ID=$(curl -si http://localhost:8091/transmission/rpc \
+    | grep -i 'X-Transmission-Session-Id:' | tr -d '\r\n' | sed 's/.*X-Transmission-Session-Id: *//')
+curl -s http://localhost:8091/transmission/rpc \
+    -H "X-Transmission-Session-Id: $SESSION_ID" \
+    -H "Content-Type: application/json" \
+    -d "{\"method\":\"session-set\",\"arguments\":{\"peer-port\":$PORT,\"port-forwarding-enabled\":false}}" \
+    >/dev/null
+echo "portforward: transmission peer port set to $PORT"
+
+# Refresh binding every 15 minutes (expires after ~2 months without renewal)
+while true; do
+    BIND=$(curl -sG --cacert "$PIA_CA" \
+        --connect-to "${PF_HOSTNAME}::${GATEWAY}:" \
+        --data-urlencode "payload=$PAYLOAD" \
+        --data-urlencode "signature=$SIGNATURE" \
+        "https://${PF_HOSTNAME}:19999/bindPort")
+    echo "portforward: $(echo "$BIND" | jq -r '.status // "error"') port $PORT"
+    sleep 900
+done

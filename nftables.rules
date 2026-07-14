@@ -8,6 +8,6 @@ table inet filter {
         udp dport 1198 accept
         udp dport 53 accept
         tcp dport 53 accept
-        tcp sport 9091 accept
+        tcp sport 8091 accept
     }
 }
